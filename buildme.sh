@@ -27,8 +27,8 @@ export CXXFLAGS=
 
 # U-Boot config
 export UBOOTDIR=u-boot
-export UBOOT_REPO=git://git.denx.de/u-boot.git
-export UBOOT_TAG=v2020.01
+export UBOOT_REPO=git@github.com:3mdeb/u-boot-marvell.git
+export UBOOT_BRANCH=clearfog-u-boot-2018.03-armada-18.12
 
 # Marvell binaries
 export BINARIES_BRANCH=binaries-marvell-armada-18.12
@@ -65,7 +65,7 @@ if [[ ! -d $ROOTDIR/build/bootloader/$UBOOTDIR ]]; then
 	git clone $UBOOT_REPO $UBOOTDIR
 	cd $UBOOTDIR
 	git fetch --tags
-	git checkout -b $UBOOT_TAG tags/$UBOOT_TAG
+	git checkout $UBOOT_BRANCH
 else
         cd $ROOTDIR/build/bootloader/$UBOOTDIR
 	git reset
@@ -73,7 +73,7 @@ else
 	git clean -fdx
 	git branch -v
 fi
-for n in $ROOTDIR/patches/u-boot/*.patch; do patch -p1 -i $n; done
+# for n in $ROOTDIR/patches/u-boot/*.patch; do patch -p1 -i $n; done
 
 echo "Downloading Marvell binaries"
 if [[ ! -d $ROOTDIR/build/bootloader/binaries-marvell ]]; then

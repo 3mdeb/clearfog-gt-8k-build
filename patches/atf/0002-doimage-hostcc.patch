@@ -1,7 +1,16 @@
 diff --git a/tools/doimage/Makefile b/tools/doimage/Makefile
-index bc74369..1d29032 100644
+index bc74369ff5b1..12204615f0f5 100644
 --- a/tools/doimage/Makefile
 +++ b/tools/doimage/Makefile
+@@ -15,7 +15,7 @@ else
+ endif
+ 
+ ifeq (${MARVELL_SECURE_BOOT},1)
+-DOIMAGE_CC_FLAGS := -DCONFIG_MVEBU_SECURE_BOOT
++DOIMAGE_CC_FLAGS := -DCONFIG_MVEBU_SECURE_BOOT -Wno-error=deprecated-declarations
+ DOIMAGE_LD_FLAGS := -lconfig -lmbedtls -lmbedcrypto -lmbedx509
+ endif
+ 
 @@ -25,7 +25,7 @@ CFLAGS += ${DOIMAGE_CC_FLAGS}
  # could get pulled in from firmware tree.
  INCLUDE_PATHS = -I.

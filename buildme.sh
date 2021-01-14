@@ -121,7 +121,7 @@ for n in $ROOTDIR/patches/mv-ddr/*.patch; do patch -p1 -i $n; done
 echo "Building U-Boot"
 cd $ROOTDIR/build/bootloader/$UBOOTDIR
 make clearfog_gt_8k_defconfig
-make
+make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building u-boot"
 	exit -1
@@ -129,7 +129,7 @@ fi
 
 echo "Building ATF - MV_DDR_PATH at $MV_DDR_PATH, BL33 at $BL33"
 cd $ROOTDIR/build/bootloader/atf-marvell
-make USE_COHERENT_MEM=0 LOG_LEVEL=20 WORKAROUND_CVE_2018_3639=0 MV_DDR_PATH=$MV_DDR_PATH PLAT=a80x0_cf_gt_8k all fip
+make MARVELL_SECURE_BOOT=1 USE_COHERENT_MEM=0 LOG_LEVEL=20 WORKAROUND_CVE_2018_3639=0 MV_DDR_PATH=$MV_DDR_PATH PLAT=a80x0_cf_gt_8k -j$(nproc) all fip
 if [ $? != 0 ]; then
 	echo "Error building ATF"
 	exit -1

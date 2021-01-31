@@ -55,7 +55,7 @@ export MV_DDR_PATH=$ROOTDIR/build/bootloader/mv-ddr-marvell
 export BL33=$ROOTDIR/build/bootloader/$UBOOTDIR/u-boot.bin
 
 # Ubuntu version
-export UBUNTU_VER=20.04.1
+export UBUNTU_VER=20.04.1-live
 
 echo "Downloading boot loader"
 cd $ROOTDIR
@@ -166,19 +166,19 @@ if [[ ! -f $ROOTDIR/build/ubuntu-$UBUNTU_VER-server-arm64.squashfs ]]; then
         if [[ ! -f ubuntu-$UBUNTU_VER-server-arm64.iso ]]; then
                 wget http://cdimage.ubuntu.com/releases/20.04/release/ubuntu-$UBUNTU_VER-server-arm64.iso
         fi
-        7z x ubuntu-$UBUNTU_VER-server-arm64.iso install/filesystem.squashfs
-	mv install/filesystem.squashfs ubuntu-$UBUNTU_VER-server-arm64.squashfs
+        7z x ubuntu-$UBUNTU_VER-server-arm64.iso casper/filesystem.squashfs
+	mv casper/filesystem.squashfs ubuntu-$UBUNTU_VER-server-arm64.squashfs
 fi
 
 cd $ROOTDIR
 
 echo "Creating partitions and images"
-dd if=/dev/zero of=$ROOTDIR/image.img bs=1M count=512
-parted --script -a optimal $ROOTDIR/image.img mklabel msdos mkpart primary 4096s 100% set 1 boot on
+dd if=/dev/zero of=$ROOTDIR/image.img bs=1M count=1024
+${SUDO}parted --script -a optimal $ROOTDIR/image.img mklabel msdos mkpart primary 4096s 100% set 1 boot on
 
 echo "Filling image with data"
 mkdir -pv $ROOTDIR/image
-LOOPDEV=`losetup -f`
+LOOPDEV=`${SUDO}losetup -f`
 ${SUDO}losetup -o 2097152 $LOOPDEV $ROOTDIR/image.img
 ${SUDO}mkfs.ext4 $LOOPDEV
 ${SUDO}mount $LOOPDEV $ROOTDIR/image
@@ -187,16 +187,17 @@ echo "Copying filesystem to the image"
 ${SUDO}unsquashfs -d $ROOTDIR/image/ -f $ROOTDIR/build/ubuntu-$UBUNTU_VER-server-arm64.squashfs
 
 echo "Copying kernel to the image"
-cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
-cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
-cat > $ROOTDIR/image/boot.txt <<EOF
+${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
+${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
+cat > $ROOTDIR/boot.txt <<EOF
 setenv earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro
 load ${devtype} ${devnum} ${kernel_addr_r} /boot/Image
 load ${devtype} ${devnum} ${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
 booti ${kernel_addr_r} - ${fdt_addr_r}
 EOF
-$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
-cd $ROOTDIR/build/$KERNELDIR && make INSTALL_MOD_PATH=$ROOTDIR/image/ INSTALL_MOD_STRIP=1 modules_install
+${SUDO}cp {ROOTDIR}/boot.txt ${ROOTDIR}/image/boot.txt
+${SUDO}$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
+${SUDO}cd $ROOTDIR/build/$KERNELDIR && ${SUDO}make INSTALL_MOD_PATH=$ROOTDIR/image/ INSTALL_MOD_STRIP=1 modules_install
 ${SUDO}chown -R root:root $ROOTDIR/image/boot $ROOTDIR/image/lib/modules
 
 cd $ROOTDIR/image

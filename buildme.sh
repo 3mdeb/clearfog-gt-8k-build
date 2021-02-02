@@ -173,6 +173,7 @@ fi
 cd $ROOTDIR
 
 echo "Creating partitions and images"
+rm $ROOTDIR/image.img
 dd if=/dev/zero of=$ROOTDIR/image.img bs=1M count=1024
 ${SUDO}parted --script -a optimal $ROOTDIR/image.img mklabel msdos mkpart primary 4096s 100% set 1 boot on
 
@@ -197,7 +198,9 @@ booti \${kernel_addr_r} - \${fdt_addr_r}
 EOF
 ${SUDO}cp ${ROOTDIR}/boot.txt ${ROOTDIR}/image/boot.txt
 ${SUDO}$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
-${SUDO}cd $ROOTDIR/build/$KERNELDIR && ${SUDO}make INSTALL_MOD_PATH=$ROOTDIR/image/ INSTALL_MOD_STRIP=1 modules_install
+rm -rf ${ROOTDIR}/modules_install
+cd $ROOTDIR/build/$KERNELDIR && make INSTALL_MOD_PATH=$ROOTDIR/modules_install INSTALL_MOD_STRIP=1 modules_install
+${SUDO}cp -r ${ROOTDIR}/modules_install/lib/modules/* ${ROOTDIR}/image/lib/modules/
 ${SUDO}chown -R root:root $ROOTDIR/image/boot $ROOTDIR/image/lib/modules
 
 cd $ROOTDIR/image

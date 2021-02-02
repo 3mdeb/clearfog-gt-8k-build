@@ -28,7 +28,7 @@ export CXXFLAGS=
 # U-Boot config
 export UBOOTDIR=u-boot
 export UBOOT_REPO=git://git.denx.de/u-boot.git
-export UBOOT_TAG=v2020.10
+export UBOOT_TAG=v2021.01
 
 # Marvell binaries
 export BINARIES_BRANCH=binaries-marvell-armada-18.12

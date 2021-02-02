@@ -1,7 +1,5 @@
-diff --git a/etc/fstab b/etc/fstab
-new file mode 100644
-index 0000000..1b62a4c
---- /dev/null
-+++ b/etc/fstab
-@@ -0,0 +1 @@
-+/dev/root	/	ext4	errors=remount-ro,noatime,nodiratime,discard,x-systemd.growfs	0 1
+--- /etc/fstab	2021-02-02 19:11:41.071948602 +0100
++++ /etc/fstab	2021-02-02 19:11:19.531743322 +0100
+@@ -1 +1,2 @@
+ # UNCONFIGURED FSTAB FOR BASE SYSTEM
++/dev/root       /       ext4    errors=remount-ro,noatime,nodiratime,discard,x-systemd.growfs   0 1

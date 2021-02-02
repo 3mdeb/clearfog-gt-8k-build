@@ -190,12 +190,12 @@ echo "Copying kernel to the image"
 ${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
 ${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
 cat > $ROOTDIR/boot.txt <<EOF
-setenv earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro
-load ${devtype} ${devnum} ${kernel_addr_r} /boot/Image
-load ${devtype} ${devnum} ${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
-booti ${kernel_addr_r} - ${fdt_addr_r}
+setenv bootargs "earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro"
+load \${devtype} \${devnum} \${kernel_addr_r} /boot/Image
+load \${devtype} \${devnum} \${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
+booti \${kernel_addr_r} - \${fdt_addr_r}
 EOF
-${SUDO}cp {ROOTDIR}/boot.txt ${ROOTDIR}/image/boot.txt
+${SUDO}cp ${ROOTDIR}/boot.txt ${ROOTDIR}/image/boot.txt
 ${SUDO}$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
 ${SUDO}cd $ROOTDIR/build/$KERNELDIR && ${SUDO}make INSTALL_MOD_PATH=$ROOTDIR/image/ INSTALL_MOD_STRIP=1 modules_install
 ${SUDO}chown -R root:root $ROOTDIR/image/boot $ROOTDIR/image/lib/modules

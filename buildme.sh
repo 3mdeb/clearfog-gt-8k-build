@@ -121,7 +121,7 @@ for n in $ROOTDIR/patches/mv-ddr/*.patch; do patch -p1 -i $n; done
 echo "Building U-Boot"
 cd $ROOTDIR/build/bootloader/$UBOOTDIR
 make clearfog_gt_8k_defconfig
-make
+make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building u-boot"
 	exit -1
@@ -142,7 +142,7 @@ if [[ ! -d $ROOTDIR/build/$KERNELDIR ]]; then
 	cd $KERNELDIR
 else
 	cd $ROOTDIR/build/$KERNELDIR
-	git reset 
+	git reset
 	git checkout .
 	git clean -fdx
 	git pull origin $KERNEL_BRANCH
@@ -154,7 +154,7 @@ echo "Building Linux Kernel"
 cd $ROOTDIR/build/$KERNELDIR
 make defconfig
 ./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra.config
-make -j4
+make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building kernel"
 	exit -1

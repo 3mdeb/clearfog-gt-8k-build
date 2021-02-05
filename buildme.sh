@@ -41,8 +41,18 @@ export MVDDR_BRANCH=mv_ddr-armada-18.12
 
 # Linux kernel
 export KERNELDIR=linux
-export KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-export KERNEL_BRANCH=linux-5.10.y
+
+# Set to 1 to build from linux-marvell, otherwise mainline kernel would be used
+MARVELL_KERNEL=1
+# Marvell
+if [ $MARVELL_KERNEL -eq 1 ]; then
+	export KERNEL_REPO=https://github.com/3mdeb/linux-marvell.git
+	export KERNEL_BRANCH=linux-4.14.76-armada-18.12-clearfog
+# mainline
+else
+	export KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+	export KERNEL_BRANCH=linux-5.4.y
+fi
 
 # Environment variables
 export PATH=$PATH:$ROOTDIR/build/toolchain/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin
@@ -148,12 +158,20 @@ else
 	git pull origin $KERNEL_BRANCH
 	git branch -v
 fi
-for n in $ROOTDIR/patches/kernel/*.patch; do patch -p1 -i $n; done
+
+# skip those patches for linux-marvell
+if [ $MARVELL_KERNEL -ne 1 ]; then
+	for n in $ROOTDIR/patches/kernel/*.patch; do patch -p1 -i $n; done
+fi
 
 echo "Building Linux Kernel"
 cd $ROOTDIR/build/$KERNELDIR
-make defconfig
-./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra.config
+if [ $MARVELL_KERNEL -eq 1 ]; then
+	make mvebu_v8_lsp_defconfig
+else
+	make defconfig
+	./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra.config
+fi
 make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building kernel"

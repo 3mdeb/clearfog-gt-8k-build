@@ -211,7 +211,7 @@ echo "Copying kernel to the image"
 ${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
 ${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
 cat > $ROOTDIR/boot.txt <<EOF
-setenv bootargs "earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro systemd.unit=emergency.target"
+setenv bootargs "earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro systemd.unit=emergency.target debug"
 load \${devtype} \${devnum} \${kernel_addr_r} /boot/Image
 load \${devtype} \${devnum} \${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
 booti \${kernel_addr_r} - \${fdt_addr_r}

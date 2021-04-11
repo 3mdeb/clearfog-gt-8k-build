@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH=${PATH}:/usr/sbin
+
 echo "Checking all required tools are installed"
 TOOLS="wget tar git make 7z unsquashfs dd mkfs.ext4 parted dtc losetup patch"
 
@@ -28,7 +30,7 @@ export CXXFLAGS=
 # U-Boot config
 export UBOOTDIR=u-boot
 export UBOOT_REPO=git://git.denx.de/u-boot.git
-export UBOOT_TAG=v2020.01
+export UBOOT_TAG=v2021.01
 
 # Marvell binaries
 export BINARIES_BRANCH=binaries-marvell-armada-18.12
@@ -41,8 +43,18 @@ export MVDDR_BRANCH=mv_ddr-armada-18.12
 
 # Linux kernel
 export KERNELDIR=linux
-export KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-export KERNEL_BRANCH=linux-5.5.y
+
+# Set to 1 to build from linux-marvell, otherwise mainline kernel would be used
+MARVELL_KERNEL=1
+# Marvell
+if [ $MARVELL_KERNEL -eq 1 ]; then
+	export KERNEL_REPO=https://github.com/3mdeb/linux-marvell.git
+	export KERNEL_BRANCH=linux-4.14.76-armada-18.12-clearfog
+# mainline
+else
+	export KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+	export KERNEL_BRANCH=linux-5.4.y
+fi
 
 # Environment variables
 export PATH=$PATH:$ROOTDIR/build/toolchain/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin
@@ -55,7 +67,7 @@ export MV_DDR_PATH=$ROOTDIR/build/bootloader/mv-ddr-marvell
 export BL33=$ROOTDIR/build/bootloader/$UBOOTDIR/u-boot.bin
 
 # Ubuntu version
-export UBUNTU_VER=18.04.3
+export UBUNTU_VER=20.04.1-live
 
 echo "Downloading boot loader"
 cd $ROOTDIR
@@ -121,7 +133,7 @@ for n in $ROOTDIR/patches/mv-ddr/*.patch; do patch -p1 -i $n; done
 echo "Building U-Boot"
 cd $ROOTDIR/build/bootloader/$UBOOTDIR
 make clearfog_gt_8k_defconfig
-make
+make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building u-boot"
 	exit -1
@@ -142,19 +154,27 @@ if [[ ! -d $ROOTDIR/build/$KERNELDIR ]]; then
 	cd $KERNELDIR
 else
 	cd $ROOTDIR/build/$KERNELDIR
-	git reset 
+	git reset
 	git checkout .
 	git clean -fdx
 	git pull origin $KERNEL_BRANCH
 	git branch -v
 fi
-for n in $ROOTDIR/patches/kernel/*.patch; do patch -p1 -i $n; done
+
+# skip those patches for linux-marvell
+if [ $MARVELL_KERNEL -ne 1 ]; then
+	for n in $ROOTDIR/patches/kernel/*.patch; do patch -p1 -i $n; done
+fi
 
 echo "Building Linux Kernel"
 cd $ROOTDIR/build/$KERNELDIR
-make defconfig
-./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra.config
-make -j4
+if [ $MARVELL_KERNEL -eq 1 ]; then
+	make mvebu_v8_lsp_defconfig
+else
+	make defconfig
+	./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra.config
+fi
+make -j$(nproc)
 if [ $? != 0 ]; then
 	echo "Error building kernel"
 	exit -1
@@ -164,21 +184,22 @@ echo "Downloading Ubuntu Image"
 if [[ ! -f $ROOTDIR/build/ubuntu-$UBUNTU_VER-server-arm64.squashfs ]]; then
         cd $ROOTDIR/build
         if [[ ! -f ubuntu-$UBUNTU_VER-server-arm64.iso ]]; then
-                wget http://cdimage.ubuntu.com/releases/18.04/release/ubuntu-$UBUNTU_VER-server-arm64.iso
+                wget http://cdimage.ubuntu.com/releases/20.04/release/ubuntu-$UBUNTU_VER-server-arm64.iso
         fi
-        7z x ubuntu-$UBUNTU_VER-server-arm64.iso install/filesystem.squashfs
-	mv install/filesystem.squashfs ubuntu-$UBUNTU_VER-server-arm64.squashfs
+        7z x ubuntu-$UBUNTU_VER-server-arm64.iso casper/filesystem.squashfs
+	mv casper/filesystem.squashfs ubuntu-$UBUNTU_VER-server-arm64.squashfs
 fi
 
 cd $ROOTDIR
 
 echo "Creating partitions and images"
-dd if=/dev/zero of=$ROOTDIR/image.img bs=1M count=512
-parted --script -a optimal $ROOTDIR/image.img mklabel msdos mkpart primary 4096s 100% set 1 boot on
+rm $ROOTDIR/image.img
+dd if=/dev/zero of=$ROOTDIR/image.img bs=1M count=2048
+${SUDO}parted --script -a optimal $ROOTDIR/image.img mklabel msdos mkpart primary 4096s 100% set 1 boot on
 
 echo "Filling image with data"
 mkdir -pv $ROOTDIR/image
-LOOPDEV=`losetup -f`
+LOOPDEV=`${SUDO}losetup -f`
 ${SUDO}losetup -o 2097152 $LOOPDEV $ROOTDIR/image.img
 ${SUDO}mkfs.ext4 $LOOPDEV
 ${SUDO}mount $LOOPDEV $ROOTDIR/image
@@ -187,16 +208,19 @@ echo "Copying filesystem to the image"
 ${SUDO}unsquashfs -d $ROOTDIR/image/ -f $ROOTDIR/build/ubuntu-$UBUNTU_VER-server-arm64.squashfs
 
 echo "Copying kernel to the image"
-cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
-cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
-cat > $ROOTDIR/image/boot.txt <<EOF
-setenv earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro
-load ${devtype} ${devnum} ${kernel_addr_r} /boot/Image
-load ${devtype} ${devnum} ${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
-booti ${kernel_addr_r} - ${fdt_addr_r}
+${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/Image $ROOTDIR/image/boot/
+${SUDO}cp -av $ROOTDIR/build/$KERNELDIR/arch/arm64/boot/dts/marvell/armada-8040-clearfog-gt-8k.dtb $ROOTDIR/image/boot/
+cat > $ROOTDIR/boot.txt <<EOF
+setenv bootargs "earlyprintk kpti=0 swiotlb=0 console=ttyS0,115200 root=/dev/mmcblk1p1 net.ifnames=0 biosdevname=0 fsck.mode=auto fsck.repair=yes rootwait ro systemd.unit=emergency.target debug"
+load \${devtype} \${devnum} \${kernel_addr_r} /boot/Image
+load \${devtype} \${devnum} \${fdt_addr_r} /boot/armada-8040-clearfog-gt-8k.dtb
+booti \${kernel_addr_r} - \${fdt_addr_r}
 EOF
-$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
-cd $ROOTDIR/build/$KERNELDIR && make INSTALL_MOD_PATH=$ROOTDIR/image/ INSTALL_MOD_STRIP=1 modules_install
+${SUDO}cp ${ROOTDIR}/boot.txt ${ROOTDIR}/image/boot.txt
+${SUDO}$ROOTDIR/build/bootloader/$UBOOTDIR/tools/mkimage -A arm64 -T script -O linux -d $ROOTDIR/image/boot.txt $ROOTDIR/image/boot.scr
+rm -rf ${ROOTDIR}/modules_install
+cd $ROOTDIR/build/$KERNELDIR && make INSTALL_MOD_PATH=$ROOTDIR/modules_install INSTALL_MOD_STRIP=1 modules_install
+${SUDO}cp -r ${ROOTDIR}/modules_install/lib/modules/* ${ROOTDIR}/image/lib/modules/
 ${SUDO}chown -R root:root $ROOTDIR/image/boot $ROOTDIR/image/lib/modules
 
 cd $ROOTDIR/image

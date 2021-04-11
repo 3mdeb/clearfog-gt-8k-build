@@ -1,0 +1,15 @@
+diff --git a/arch/arm/dts/armada-8040-clearfog-gt-8k.dts b/arch/arm/dts/armada-8040-clearfog-gt-8k.dts
+index 720c95082b..359041925b 100644
+--- a/arch/arm/dts/armada-8040-clearfog-gt-8k.dts
++++ b/arch/arm/dts/armada-8040-clearfog-gt-8k.dts
+@@ -63,6 +63,10 @@
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&ap_emmc_pins>;
+ 	bus-width = <8>;
++	no-1-8-v;
++	no-sd;
++	no-sdio;
++	non-removable;
+ 	status = "okay";
+ };
+ 

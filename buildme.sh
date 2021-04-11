@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH=${PATH}:/usr/sbin
+
 echo "Checking all required tools are installed"
 TOOLS="wget tar git make 7z unsquashfs dd mkfs.ext4 parted dtc losetup patch"
 
